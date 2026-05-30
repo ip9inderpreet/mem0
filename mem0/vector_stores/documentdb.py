@@ -155,8 +155,9 @@ class DocumentDB(VectorStoreBase):
         try:
             collection = self.client[self.db_name][self.collection_name]
 
-            # Use configured num_candidates or default to top_k (matching MongoDB behavior)
-            num_candidates = self.num_candidates if self.num_candidates else top_k
+            # numCandidates must be >= top_k and should be meaningfully larger for good recall.
+            # Default to max(10 * top_k, 100) so there are enough candidates to rank from.
+            num_candidates = self.num_candidates if self.num_candidates else max(10 * top_k, 100)
 
             # Simple DocumentDB vector search pipeline
             pipeline = [
