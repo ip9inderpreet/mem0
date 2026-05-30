@@ -129,14 +129,14 @@ class DocumentDB(VectorStoreBase):
         except PyMongoError as e:
             logger.error(f"Error inserting data: {e}")
 
-    def search(self, query: str, vectors: List[float], limit=5, filters: Optional[Dict] = None) -> List[OutputData]:
+    def search(self, query: str, vectors: List[float], top_k=5, filters: Optional[Dict] = None) -> List[OutputData]:
         """
         Search for similar vectors using DocumentDB vector search.
 
         Args:
             query (str): Query string
             vectors (List[float]): Query vector.
-            limit (int, optional): Number of results to return. Defaults to 5.
+            top_k (int, optional): Number of results to return. Defaults to 5.
             filters (Dict, optional): Filters to apply to the search.
 
         Returns:
@@ -155,8 +155,8 @@ class DocumentDB(VectorStoreBase):
         try:
             collection = self.client[self.db_name][self.collection_name]
 
-            # Use configured num_candidates or default to limit (matching MongoDB behavior)
-            num_candidates = self.num_candidates if self.num_candidates else limit
+            # Use configured num_candidates or default to top_k (matching MongoDB behavior)
+            num_candidates = self.num_candidates if self.num_candidates else top_k
 
             # Simple DocumentDB vector search pipeline
             pipeline = [
@@ -164,7 +164,7 @@ class DocumentDB(VectorStoreBase):
                     "$vectorSearch": {
                         "exact": False,
                         "index": self.index_name,
-                        "limit": limit,
+                        "limit": top_k,
                         "path": "vectorEmbedding",
                         "queryVector": vectors,
                         "numCandidates": num_candidates,
@@ -299,13 +299,13 @@ class DocumentDB(VectorStoreBase):
             logger.error(f"Error getting collection info: {e}")
             return {}
 
-    def list(self, filters: Optional[Dict] = None, limit: int = 100) -> List[OutputData]:
+    def list(self, filters: Optional[Dict] = None, top_k: int = 100) -> List[OutputData]:
         """
         List vectors in the collection.
 
         Args:
             filters (Dict, optional): Filters to apply to the list.
-            limit (int, optional): Number of vectors to return.
+            top_k (int, optional): Number of vectors to return.
 
         Returns:
             List[OutputData]: List of vectors.
@@ -317,7 +317,7 @@ class DocumentDB(VectorStoreBase):
                 for key, value in filters.items():
                     query["payload." + key] = value
 
-            cursor = self.collection.find(query).limit(limit)
+            cursor = self.collection.find(query).limit(top_k)
             results = [OutputData(id=str(doc["_id"]), score=None, payload=doc.get("payload")) for doc in cursor]
             logger.info(f"Retrieved {len(results)} documents from collection '{self.collection_name}'.")
             return results
